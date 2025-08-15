@@ -13,6 +13,7 @@ struct AddAssetView: View {
     @State private var selectedCurrency: CurrencyType?
     @State private var shares = ""
     @State private var costPrice = ""
+    @State private var purchaseDate = Date()
     @State private var showingStockSelection = false
     
     var body: some View {
@@ -219,6 +220,15 @@ struct AddAssetView: View {
                     .frame(width: 80)
             }
             
+            // 购入时间
+            DatePicker(
+                "购入时间",
+                selection: $purchaseDate,
+                in: ...Date(),
+                displayedComponents: .date
+            )
+            .foregroundColor(.primary)
+            
             // 预览信息
             if let stock = selectedStock,
                let currency = selectedCurrency,
@@ -300,7 +310,8 @@ struct AddAssetView: View {
             currency: currency,
             shares: sharesValue,
             costPrice: costPriceValue,
-            currentPrice: stock.currentPrice
+            currentPrice: stock.currentPrice,
+            purchaseDate: purchaseDate
         )
         
         onAssetAdded(asset)

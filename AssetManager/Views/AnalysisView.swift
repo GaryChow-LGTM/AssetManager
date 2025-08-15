@@ -14,6 +14,18 @@ struct AnalysisView: View {
     var body: some View {
         NavigationView {
             VStack {
+                // 数据更新状态指示器
+                if analysisService.isAnalyzing {
+                    HStack {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("正在更新投资组合分析...")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal)
+                }
+                
                 // 标签页选择器
                 Picker("分析类型", selection: $selectedTab) {
                     ForEach(AnalysisTab.allCases, id: \.self) { tab in
@@ -39,6 +51,10 @@ struct AnalysisView: View {
                         }
                     }
                     .padding()
+                }
+                .refreshable {
+                    // 下拉刷新时更新分析数据
+                    await analysisService.createSnapshot(from: assets)
                 }
             }
             .navigationTitle("深度分析")
@@ -75,6 +91,12 @@ struct AnalysisView: View {
         }
         .task {
             await analysisService.createDailySnapshotIfNeeded(from: assets)
+        }
+        .onAppear {
+            // 页面出现时检查是否需要更新分析数据
+            Task {
+                await analysisService.createSnapshot(from: assets)
+            }
         }
     }
     

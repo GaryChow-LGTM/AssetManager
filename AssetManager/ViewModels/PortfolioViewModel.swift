@@ -95,6 +95,7 @@ class PortfolioViewModel: ObservableObject {
     
     // MARK: - Private Properties
     private let stockAPIService: StockAPIService
+    private let analysisService = PortfolioAnalysisService.shared
     private var refreshTimer: Timer?
     private let userDefaults = UserDefaults.standard
     private let assetsKey = "SavedAssets"
@@ -121,6 +122,9 @@ class PortfolioViewModel: ObservableObject {
         // 立即更新新添加资产的价格
         Task {
             await refreshAssetPrice(asset)
+            
+            // 添加资产后立即更新投资组合深度分析
+            await updatePortfolioAnalysis()
         }
     }
     
@@ -128,6 +132,11 @@ class PortfolioViewModel: ObservableObject {
     func removeAsset(_ asset: Asset) {
         assets.removeAll { $0.id == asset.id }
         saveAssets()
+        
+        // 删除资产后立即更新投资组合深度分析
+        Task {
+            await updatePortfolioAnalysis()
+        }
     }
     
     /// 更新资产
@@ -135,6 +144,11 @@ class PortfolioViewModel: ObservableObject {
         if let index = assets.firstIndex(where: { $0.id == asset.id }) {
             assets[index] = asset
             saveAssets()
+            
+            // 更新资产后立即更新投资组合深度分析
+            Task {
+                await updatePortfolioAnalysis()
+            }
         }
     }
     
@@ -156,14 +170,19 @@ class PortfolioViewModel: ObservableObject {
                         stockCode: asset.stockCode,
                         stockName: asset.stockName,
                         market: asset.market,
+                        currency: asset.currency,
                         shares: asset.shares,
                         costPrice: asset.costPrice,
-                        currentPrice: newPrice
+                        currentPrice: newPrice,
+                        purchaseDate: asset.purchaseDate
                     )
                 }
             }
             
             saveAssets()
+            
+            // 价格更新后立即更新投资组合深度分析
+            await updatePortfolioAnalysis()
         } catch {
             errorMessage = "价格更新失败: \(error.localizedDescription)"
         }
@@ -184,15 +203,25 @@ class PortfolioViewModel: ObservableObject {
                     stockCode: asset.stockCode,
                     stockName: asset.stockName,
                     market: asset.market,
+                    currency: asset.currency,
                     shares: asset.shares,
                     costPrice: asset.costPrice,
-                    currentPrice: stockInfo.currentPrice
+                    currentPrice: stockInfo.currentPrice,
+                    purchaseDate: asset.purchaseDate
                 )
                 saveAssets()
             }
         } catch {
             errorMessage = "价格更新失败: \(error.localizedDescription)"
         }
+    }
+    
+    /// 更新投资组合深度分析
+    private func updatePortfolioAnalysis() async {
+        guard !assets.isEmpty else { return }
+        
+        // 创建新的投资组合快照以更新深度分析
+        await analysisService.createSnapshot(from: assets)
     }
     
     /// 手动刷新
@@ -285,6 +314,11 @@ extension PortfolioViewModel {
                     let costPrice = stock.currentPrice * costPriceRatio
                     
                     let currency = currencyService.getDefaultCurrency(for: market)
+                    
+                    // 生成随机的购入时间（过去30-365天内）
+                    let daysAgo = Int.random(in: 30...365)
+                    let purchaseDate = Calendar.current.date(byAdding: .day, value: -daysAgo, to: Date()) ?? Date()
+                    
                     let asset = Asset(
                         stockCode: stock.stockCode,
                         stockName: stock.stockName,
@@ -292,7 +326,8 @@ extension PortfolioViewModel {
                         currency: currency,
                         shares: shares,
                         costPrice: costPrice,
-                        currentPrice: stock.currentPrice
+                        currentPrice: stock.currentPrice,
+                        purchaseDate: purchaseDate
                     )
                     sampleAssets.append(asset)
                 }
