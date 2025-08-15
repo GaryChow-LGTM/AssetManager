@@ -7,6 +7,11 @@ struct ProfileView: View {
     @State private var showingCurrencySettings = false
     @State private var showingAbout = false
     @State private var showingDataManagement = false
+    @State private var showingShareExporter = false
+    @State private var exportURL: URL?
+    @State private var showingImporter = false
+    @State private var importError: String?
+    @EnvironmentObject private var portfolioViewModel: PortfolioViewModel
     
     var body: some View {
         NavigationView {
@@ -27,6 +32,30 @@ struct ProfileView: View {
             #if canImport(UIKit)
             .navigationBarTitleDisplayMode(.large)
             #endif
+        }
+        .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.json]) { result in
+            switch result {
+            case .success(let url):
+                do {
+                    try DataBackupService.shared.import(from: url, mode: .replace, portfolioViewModel: portfolioViewModel)
+                    HapticFeedback.success()
+                } catch {
+                    importError = "导入失败: \(error.localizedDescription)"
+                }
+            case .failure(let err):
+                importError = "选择文件失败: \(err.localizedDescription)"
+            }
+        }
+        .sheet(isPresented: $showingShareExporter) {
+            if let exportURL = exportURL {
+                ShareLink(item: exportURL) { Text("分享导出文件") }
+                    .padding()
+            }
+        }
+        .alert("错误", isPresented: .constant(importError != nil)) {
+            Button("确定") { importError = nil }
+        } message: {
+            if let msg = importError { Text(msg) }
         }
         .sheet(isPresented: $showingCurrencySettings) {
             SettingsView()
@@ -177,9 +206,31 @@ struct ProfileView: View {
                 
                 Spacer()
                 
-                Button("导出") {
-                    exportData()
+                Button("导出") { exportData() }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+            .padding(.vertical, 4)
+
+            // 数据导入
+            HStack {
+                Image(systemName: "square.and.arrow.down.fill")
+                    .foregroundColor(.purple)
+                    .font(.title2)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("数据导入")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    
+                    Text("从备份文件恢复数据")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
+                
+                Spacer()
+                
+                Button("导入") { showingImporter = true }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
             }
@@ -267,8 +318,14 @@ struct ProfileView: View {
     // MARK: - 辅助方法
     
     private func exportData() {
-        // TODO: 实现数据导出功能
-        HapticFeedback.success()
+        do {
+            let url = try DataBackupService.shared.exportJSON()
+            exportURL = url
+            showingShareExporter = true
+            HapticFeedback.success()
+        } catch {
+            importError = "导出失败: \(error.localizedDescription)"
+        }
     }
     
     private func contactSupport() {
@@ -499,6 +556,6 @@ struct DataManagementView: View {
 // MARK: - Preview
 struct ProfileView_Previews: PreviewProvider {
     static var previews: some View {
-        ProfileView()
+        ProfileView().environmentObject(PortfolioViewModel())
     }
 }

@@ -28,6 +28,22 @@ class TransactionStore: ObservableObject {
     
     func listAll() -> [Transaction] { transactions }
     
+    func replaceAll(_ items: [Transaction]) {
+        transactions = items
+        save()
+    }
+    
+    func merge(_ items: [Transaction]) {
+        var set = Set(transactions.map { $0.id })
+        var merged = transactions
+        for tx in items where !set.contains(tx.id) {
+            merged.append(tx)
+            set.insert(tx.id)
+        }
+        transactions = merged.sorted { $0.date > $1.date }
+        save()
+    }
+    
     private func save() {
         if let data = try? JSONEncoder().encode(transactions) {
             userDefaults.set(data, forKey: key)

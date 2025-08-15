@@ -47,6 +47,19 @@ class GroupStore: ObservableObject {
         save()
     }
     
+    func replaceAll(_ newGroups: [PortfolioGroup]) {
+        groups = newGroups
+        save()
+    }
+    
+    func merge(_ items: [PortfolioGroup]) {
+        let existingIds = Set(groups.map { $0.id })
+        var merged = groups
+        for g in items where !existingIds.contains(g.id) { merged.append(g) }
+        groups = merged
+        save()
+    }
+    
     private func save() {
         if let data = try? JSONEncoder().encode(groups) {
             userDefaults.set(data, forKey: key)

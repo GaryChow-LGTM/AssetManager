@@ -10,21 +10,30 @@ struct MainTabView: View {
             // 首页 - 财务信息和持仓
             HomeView(viewModel: portfolioViewModel)
                 .tabItem {
-                    Label("首页", systemImage: "house.fill")
+                    VStack {
+                        Image(systemName: "house.fill")
+                        Text("首页")
+                    }
                 }
                 .tag(0)
             
             // 分析页 - 深度分析
             AnalysisTabView(assets: portfolioViewModel.assets)
                 .tabItem {
-                    Label("分析", systemImage: "chart.bar.doc.horizontal.fill")
+                    VStack {
+                        Image(systemName: "chart.bar.doc.horizontal.fill")
+                        Text("分析")
+                    }
                 }
                 .tag(1)
             
             // 我的页 - 设置
             ProfileView()
                 .tabItem {
-                    Label("我的", systemImage: "person.fill")
+                    VStack {
+                        Image(systemName: "person.fill")
+                        Text("我的")
+                    }
                 }
                 .tag(2)
         }

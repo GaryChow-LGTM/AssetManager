@@ -456,6 +456,14 @@ class PortfolioViewModel: ObservableObject {
             userDefaults.set(encoded, forKey: assetsKey)
         }
     }
+
+    /// 供外部恢复数据后重载内存
+    func manualReloadAssets() {
+        if let data = userDefaults.data(forKey: assetsKey),
+           let decodedAssets = try? JSONDecoder().decode([Asset].self, from: data) {
+            self.assets = decodedAssets
+        }
+    }
     
     /// 开始自动刷新
     private func startAutoRefresh() {
