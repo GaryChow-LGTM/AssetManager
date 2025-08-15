@@ -8,6 +8,7 @@ class PortfolioViewModel: ObservableObject {
     
     // MARK: - Published Properties
     @Published var assets: [Asset] = []
+    @Published var selectedGroupId: String? = nil // nil 表示“全部”
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var isRefreshing = false
@@ -19,12 +20,12 @@ class PortfolioViewModel: ObservableObject {
     
     /// 总资产市值（基准货币）
     var totalValue: Double {
-        currencyService.calculateTotalValue(assets: assets)
+        currencyService.calculateTotalValue(assets: filteredAssets)
     }
     
     /// 总成本（基准货币）
     var totalCost: Double {
-        currencyService.calculateTotalCost(assets: assets)
+        currencyService.calculateTotalCost(assets: filteredAssets)
     }
     
     /// 基准货币
@@ -50,7 +51,7 @@ class PortfolioViewModel: ObservableObject {
     
     /// 按市场分组的资产
     var assetsByMarket: [MarketType: [Asset]] {
-        Dictionary(grouping: assets) { $0.market }
+        Dictionary(grouping: filteredAssets) { $0.market }
     }
     
     /// 市场分布数据（用于饼图）
@@ -70,7 +71,7 @@ class PortfolioViewModel: ObservableObject {
     var stockDistribution: [(asset: Asset, percentage: Double)] {
         guard totalValue > 0 else { return [] }
         
-        return assets
+        return filteredAssets
             .map { asset in
                 let assetValueInBaseCurrency = asset.getCurrentValue(in: baseCurrency)
                 let percentage = (assetValueInBaseCurrency / totalValue) * 100
@@ -83,18 +84,44 @@ class PortfolioViewModel: ObservableObject {
     
     /// 货币分布数据（用于饼图）
     var currencyDistribution: [(currency: CurrencyType, value: Double, percentage: Double)] {
-        let currencyValues = Dictionary(grouping: assets) { $0.currency }
+        let currencyValues = Dictionary(grouping: filteredAssets) { $0.currency }
             .mapValues { assets in
                 assets.reduce(0) { total, asset in
                     total + asset.getCurrentValue(in: baseCurrency)
                 }
             }
-        
         return currencyValues.compactMap { currency, value in
             guard totalValue > 0 else { return nil }
             let percentage = (value / totalValue) * 100
             return (currency: currency, value: value, percentage: percentage)
         }.sorted { $0.value > $1.value }
+    }
+
+    /// 基于所选分组过滤后的资产
+    var filteredAssets: [Asset] {
+        guard let gid = selectedGroupId else { return assets }
+        return assets.filter { $0.groupId == gid }
+    }
+
+    // MARK: - Group Ops
+    func assign(_ asset: Asset, to groupId: String?) {
+        if let index = assets.firstIndex(where: { $0.id == asset.id }) {
+            var updated = assets[index]
+            updated.groupId = groupId
+            assets[index] = updated
+            saveAssets()
+        }
+    }
+
+    func unassignGroup(for groupId: String) {
+        var changed = false
+        for i in assets.indices {
+            if assets[i].groupId == groupId {
+                assets[i].groupId = nil
+                changed = true
+            }
+        }
+        if changed { saveAssets() }
     }
     
 
@@ -218,7 +245,8 @@ class PortfolioViewModel: ObservableObject {
                 shares: remainingShares,
                 costPrice: current.costPrice,
                 currentPrice: current.currentPrice,
-                purchaseDate: current.purchaseDate
+                purchaseDate: current.purchaseDate,
+                groupId: current.groupId
             )
             assets[index] = updated
         } else {
@@ -330,7 +358,8 @@ class PortfolioViewModel: ObservableObject {
                         shares: asset.shares,
                         costPrice: asset.costPrice,
                         currentPrice: newPrice,
-                        purchaseDate: asset.purchaseDate
+                        purchaseDate: asset.purchaseDate,
+                        groupId: asset.groupId
                     )
                 }
             }
@@ -363,7 +392,8 @@ class PortfolioViewModel: ObservableObject {
                     shares: asset.shares,
                     costPrice: asset.costPrice,
                     currentPrice: stockInfo.currentPrice,
-                    purchaseDate: asset.purchaseDate
+                    purchaseDate: asset.purchaseDate,
+                    groupId: asset.groupId
                 )
                 saveAssets()
             }

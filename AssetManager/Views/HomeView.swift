@@ -33,7 +33,8 @@ struct HomeView: View {
                         .padding(.vertical, 4)
                 }
 
-                // 资产列表区域（每个资产为独立行，支持右滑）
+                // 分组切换与资产列表
+                groupSwitcherSection
                 assetsListSection
             }
             .listStyle(PlainListStyle())
@@ -225,29 +226,62 @@ struct HomeView: View {
         return "缺少今日参考快照"
     }
     
+    // MARK: - Group Switcher
+    private var groupSwitcherSection: some View {
+        Section {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    GroupChip(title: "全部", isSelected: viewModel.selectedGroupId == nil) {
+                        viewModel.selectedGroupId = nil
+                    }
+                    ForEach(GroupStore.shared.list(), id: \.id) { g in
+                        GroupChip(title: g.name, isSelected: viewModel.selectedGroupId == g.id) {
+                            viewModel.selectedGroupId = g.id
+                        }
+                    }
+                    Spacer(minLength: 0)
+                    NavigationLink(destination: GroupManagementView(viewModel: viewModel)) {
+                        Label("管理分组", systemImage: "slider.horizontal.3")
+                            .font(.subheadline)
+                    }
+                }
+                .padding(.vertical, 6)
+            }
+        }
+    }
+
     // MARK: - Assets Section
     private var assetsListSection: some View {
         Section(header:
                     HStack {
-                        Text("我的持仓")
+                        Text(viewModel.selectedGroupId == nil ? "我的持仓" : "我的持仓 · 分组")
                             .font(.headline)
                             .fontWeight(.semibold)
                         Spacer()
                         if viewModel.isRefreshing { ProgressView().scaleEffect(0.8) }
                     }
         ) {
-            if viewModel.assets.isEmpty {
+            let data = viewModel.filteredAssets
+            if data.isEmpty {
                 emptyStateView
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
             } else {
-                ForEach(viewModel.assets) { asset in
+                ForEach(data) { asset in
                     NavigationLink(destination: AssetDetailView(asset: asset)) {
                         AssetRowView(asset: asset) {
                             viewModel.removeAsset(asset)
                         } onSell: {
                             assetToSell = asset
                             HapticFeedback.light()
+                        }
+                        .contextMenu {
+                            // 移动到分组菜单
+                            Button("未分组") { viewModel.assign(asset, to: nil) }
+                            Divider()
+                            ForEach(GroupStore.shared.list(), id: \.id) { g in
+                                Button(g.name) { viewModel.assign(asset, to: g.id) }
+                            }
                         }
                     }
                     .listRowSeparator(.hidden)

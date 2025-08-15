@@ -11,6 +11,7 @@ struct Asset: Identifiable, Codable, Hashable {
     var costPrice: Double // 平均成本价（原币种）
     var currentPrice: Double // 当前价格（原币种）
     let purchaseDate: Date // 购入时间
+    var groupId: String? // 分组标识（nil 表示未分组，出现在“全部”）
     
     /// 当前市值
     var currentValue: Double {
@@ -38,7 +39,7 @@ struct Asset: Identifiable, Codable, Hashable {
         profitLoss >= 0
     }
     
-    init(stockCode: String, stockName: String, market: MarketType, currency: CurrencyType? = nil, shares: Double, costPrice: Double, currentPrice: Double = 0.0, purchaseDate: Date = Date()) {
+    init(stockCode: String, stockName: String, market: MarketType, currency: CurrencyType? = nil, shares: Double, costPrice: Double, currentPrice: Double = 0.0, purchaseDate: Date = Date(), groupId: String? = nil) {
         self.stockCode = stockCode
         self.stockName = stockName
         self.market = market
@@ -48,6 +49,7 @@ struct Asset: Identifiable, Codable, Hashable {
         self.costPrice = costPrice
         self.currentPrice = currentPrice
         self.purchaseDate = purchaseDate
+        self.groupId = groupId
     }
     
     /// 获取市场的默认货币（静态方法，避免MainActor问题）
