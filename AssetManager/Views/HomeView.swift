@@ -9,7 +9,6 @@ struct HomeView: View {
     @State private var showingAddAsset = false
     @State private var assetToSell: Asset?
     
-    @State private var selectedChartType: ChartType = .market
     @State private var selectedTimeRange: TimeRange = .month
     @State private var showPercentageTrend: Bool = true
 
@@ -32,17 +31,6 @@ struct HomeView: View {
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                         .padding(.vertical, 4)
-                }
-
-                // 图表区域
-                if !viewModel.assets.isEmpty {
-                    Section {
-                        chartSection
-                            .listRowInsets(EdgeInsets())
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .padding(.vertical, 4)
-                    }
                 }
 
                 // 资产列表区域（每个资产为独立行，支持右滑）
@@ -237,79 +225,6 @@ struct HomeView: View {
         return "缺少今日参考快照"
     }
     
-    // MARK: - Chart Section
-    private var chartSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("资产分布")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                
-                Spacer()
-                
-                Picker("图表类型", selection: $selectedChartType) {
-                    Text("市场").tag(ChartType.market)
-                    Text("货币").tag(ChartType.currency)
-                }
-                .pickerStyle(SegmentedPickerStyle())
-                .frame(width: 120)
-            }
-            
-            Group {
-                switch selectedChartType {
-                case .market:
-                    marketDistributionChart
-                case .currency:
-                    currencyDistributionChart
-                }
-            }
-        }
-        .padding()
-        .background(Color.appCardBackground)
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
-    }
-    
-    private var marketDistributionChart: some View {
-        Chart(viewModel.marketDistribution, id: \.market) { data in
-            SectorMark(
-                angle: .value("占比", data.percentage),
-                innerRadius: .ratio(0.5),
-                angularInset: 1.5
-            )
-            .foregroundStyle(colorForMarket(data.market))
-            .opacity(0.8)
-        }
-        .frame(height: 200)
-        .chartBackground { _ in
-            VStack {
-                Text("市场分布")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
-    }
-    
-    private var currencyDistributionChart: some View {
-        Chart(viewModel.currencyDistribution, id: \.currency) { data in
-            SectorMark(
-                angle: .value("占比", data.percentage),
-                innerRadius: .ratio(0.5),
-                angularInset: 1.5
-            )
-            .foregroundStyle(colorForCurrency(data.currency))
-            .opacity(0.8)
-        }
-        .frame(height: 200)
-        .chartBackground { _ in
-            VStack {
-                Text("货币分布")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-        }
-    }
-    
     // MARK: - Assets Section
     private var assetsListSection: some View {
         Section(header:
@@ -378,27 +293,6 @@ struct HomeView: View {
     }
     
     // MARK: - Helper Methods
-    private func colorForMarket(_ market: MarketType) -> Color {
-        switch market {
-        case .usStock:
-            return .blue
-        case .hkStock:
-            return .green
-        case .cnStock:
-            return .red
-        }
-    }
-    
-    private func colorForCurrency(_ currency: CurrencyType) -> Color {
-        switch currency {
-        case .cny:
-            return .red
-        case .hkd:
-            return .green
-        case .usd:
-            return .blue
-        }
-    }
 }
 
 // MARK: - Supporting Types (使用 SharedComponents 中的定义)
