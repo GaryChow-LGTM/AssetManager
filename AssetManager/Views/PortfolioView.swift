@@ -455,22 +455,28 @@ struct AssetRowView: View {
                         .cornerRadius(3)
                 }
                 
-                HStack {
-                    Text("持仓: \(String(format: "%.0f", asset.shares))股")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Text("持仓: \(String(format: "%.0f", asset.shares))股")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Text("成本: \(asset.formattedCostPrice)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Text("(\(asset.currency.code))")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 3)
+                            .padding(.vertical, 1)
+                            .background(colorForCurrency(asset.currency).opacity(0.2))
+                            .cornerRadius(2)
+                    }
                     
-                    Text("成本: \(asset.formattedCostPrice)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    Text("(\(asset.currency.code))")
+                    Text("购入: \(formatPurchaseDate(asset.purchaseDate))")
                         .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 3)
-                        .padding(.vertical, 1)
-                        .background(colorForCurrency(asset.currency).opacity(0.2))
-                        .cornerRadius(2)
+                        .foregroundColor(.secondary.opacity(0.8))
                 }
             }
             
@@ -522,6 +528,12 @@ struct AssetRowView: View {
         case .usd:
             return .blue
         }
+    }
+    
+    private func formatPurchaseDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy/MM/dd"
+        return formatter.string(from: date)
     }
 }
 
