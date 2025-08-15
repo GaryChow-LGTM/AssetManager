@@ -7,6 +7,7 @@ struct PortfolioView: View {
     @StateObject private var currencyService = CurrencyService.shared
     @State private var showingAddAsset = false
     @State private var showingSettings = false
+    @State private var showingAnalysis = false
     @State private var selectedChartType: ChartType = .market
     
     var body: some View {
@@ -63,6 +64,9 @@ struct PortfolioView: View {
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
             }
+            .sheet(isPresented: $showingAnalysis) {
+                AnalysisView(assets: viewModel.assets)
+            }
             .alert("错误", isPresented: .constant(viewModel.errorMessage != nil)) {
                 Button("确定") {
                     viewModel.clearError()
@@ -112,6 +116,11 @@ struct PortfolioView: View {
                     color: .orange,
                     icon: "dollarsign.circle.fill"
                 )
+            }
+            
+            // 深度分析按钮
+            if !viewModel.assets.isEmpty {
+                analysisButton
             }
         }
     }
@@ -303,6 +312,41 @@ struct PortfolioView: View {
         } label: {
             Image(systemName: "gearshape")
         }
+    }
+    
+    private var analysisButton: some View {
+        Button {
+            showingAnalysis = true
+            HapticFeedback.light()
+        } label: {
+            HStack {
+                Image(systemName: "chart.bar.doc.horizontal")
+                    .font(.title2)
+                    .foregroundColor(.blue)
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("深度分析")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.primary)
+                    
+                    Text("查看详细的投资组合分析报告")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding()
+            .background(Color.appCardBackground)
+            .cornerRadius(12)
+            .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
     
     // MARK: - Helper Methods
