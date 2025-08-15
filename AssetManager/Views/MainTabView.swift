@@ -29,6 +29,12 @@ struct MainTabView: View {
                 .tag(2)
         }
         .accentColor(.blue)
+        .onAppear {
+            // 通过 UITest 启动参数注入示例数据
+            if ProcessInfo.processInfo.arguments.contains("-uiTestAddSampleData") {
+                portfolioViewModel.addSampleData()
+            }
+        }
     }
 }
 

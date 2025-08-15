@@ -4,6 +4,7 @@ import SwiftUI
 struct AssetRowView: View {
     let asset: Asset
     let onDelete: () -> Void
+    var onSell: (() -> Void)? = nil
     
     var body: some View {
         HStack {
@@ -75,9 +76,25 @@ struct AssetRowView: View {
         .padding()
         .background(Color.appCardBackground)
         .cornerRadius(8)
+        .accessibilityIdentifier("AssetRow_\(asset.stockCode)_\(asset.market.rawValue)")
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if let onSell = onSell {
+                Button("卖出") {
+                    onSell()
+                }
+                .tint(.blue)
+                .accessibilityIdentifier("sell_button")
+            }
             Button("删除", role: .destructive) {
                 onDelete()
+            }
+            .accessibilityIdentifier("delete_button")
+        }
+        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+            if let onSell = onSell {
+                Button("卖出") { onSell() }
+                    .tint(.blue)
+                    .accessibilityIdentifier("sell_button_leading")
             }
         }
     }

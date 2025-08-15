@@ -7,6 +7,7 @@ struct HomeView: View {
     @StateObject private var currencyService = CurrencyService.shared
     @StateObject private var analysisService = PortfolioAnalysisService.shared
     @State private var showingAddAsset = false
+    @State private var assetToSell: Asset?
     
     @State private var selectedChartType: ChartType = .market
     @State private var selectedTimeRange: TimeRange = .month
@@ -14,24 +15,40 @@ struct HomeView: View {
 
     var body: some View {
         NavigationView {
-            ScrollView {
-                LazyVStack(spacing: 20) {
-                    // 账户总览
+            List {
+                // 账户总览
+                Section {
                     accountOverviewSection
-
-                    // 收益趋势
-                    returnsTrendSection
-                    
-                    // 图表区域
-                    if !viewModel.assets.isEmpty {
-                        chartSection
-                    }
-                    
-                    // 资产列表区域
-                    assetsSection
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .padding(.vertical, 4)
                 }
-                .padding()
+
+                // 收益趋势
+                Section {
+                    returnsTrendSection
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .padding(.vertical, 4)
+                }
+
+                // 图表区域
+                if !viewModel.assets.isEmpty {
+                    Section {
+                        chartSection
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .padding(.vertical, 4)
+                    }
+                }
+
+                // 资产列表区域（每个资产为独立行，支持右滑）
+                assetsListSection
             }
+            .listStyle(PlainListStyle())
             .navigationTitle("智投管家")
             #if canImport(UIKit)
             .navigationBarTitleDisplayMode(.large)
@@ -47,13 +64,16 @@ struct HomeView: View {
                 }
                 #endif
             }
-            .refreshable {
-                await viewModel.refreshAllPrices()
-            }
+            .refreshable { await viewModel.refreshAllPrices() }
         }
         .sheet(isPresented: $showingAddAsset) {
             AddAssetView { asset in
                 viewModel.addAsset(asset)
+            }
+        }
+        .sheet(item: $assetToSell) { asset in
+            SellAssetView(asset: asset) { soldShares, sellPrice, sellDate, fees in
+                viewModel.sellAsset(asset, soldShares: soldShares, sellPrice: sellPrice, sellDate: sellDate, fees: fees)
             }
         }
         .alert("错误", isPresented: .constant(viewModel.errorMessage != nil)) {
@@ -291,37 +311,34 @@ struct HomeView: View {
     }
     
     // MARK: - Assets Section
-    private var assetsSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("我的持仓")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                
-                Spacer()
-                
-                if viewModel.isRefreshing {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                }
-            }
-            
+    private var assetsListSection: some View {
+        Section(header:
+                    HStack {
+                        Text("我的持仓")
+                            .font(.headline)
+                            .fontWeight(.semibold)
+                        Spacer()
+                        if viewModel.isRefreshing { ProgressView().scaleEffect(0.8) }
+                    }
+        ) {
             if viewModel.assets.isEmpty {
                 emptyStateView
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
             } else {
-                LazyVStack(spacing: 8) {
-                    ForEach(viewModel.assets) { asset in
-                        AssetRowView(asset: asset) {
-                            viewModel.removeAsset(asset)
-                        }
+                ForEach(viewModel.assets) { asset in
+                    AssetRowView(asset: asset) {
+                        viewModel.removeAsset(asset)
+                    } onSell: {
+                        assetToSell = asset
+                        HapticFeedback.light()
                     }
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .padding(.vertical, 4)
                 }
             }
         }
-        .padding()
-        .background(Color.appCardBackground)
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
     }
     
     private var emptyStateView: some View {

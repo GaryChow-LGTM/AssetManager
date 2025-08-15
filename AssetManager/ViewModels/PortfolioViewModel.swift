@@ -175,6 +175,50 @@ class PortfolioViewModel: ObservableObject {
         }
     }
     
+    /// 卖出资产（部分或全部）
+    func sellAsset(_ asset: Asset, soldShares: Double, sellPrice: Double, sellDate: Date = Date(), fees: Double = 0) {
+        guard soldShares > 0, sellPrice > 0, fees >= 0 else {
+            errorMessage = "卖出参数非法"
+            return
+        }
+        guard let index = assets.firstIndex(where: { $0.id == asset.id }) else {
+            errorMessage = "未找到待卖出的资产"
+            return
+        }
+        let current = assets[index]
+        guard soldShares <= current.shares else {
+            errorMessage = "卖出数量超过持仓数量"
+            return
+        }
+
+        let remainingShares = current.shares - soldShares
+
+        if remainingShares > 0 {
+            // 保持加权平均成本不变，仅减少持仓数量
+            let updated = Asset(
+                stockCode: current.stockCode,
+                stockName: current.stockName,
+                market: current.market,
+                currency: current.currency,
+                shares: remainingShares,
+                costPrice: current.costPrice,
+                currentPrice: current.currentPrice,
+                purchaseDate: current.purchaseDate
+            )
+            assets[index] = updated
+        } else {
+            // 全部卖出则移除资产
+            assets.remove(at: index)
+        }
+
+        saveAssets()
+
+        // 卖出后更新投资组合深度分析
+        Task {
+            await updatePortfolioAnalysis()
+        }
+    }
+
     /// 删除资产
     func removeAsset(_ asset: Asset) {
         assets.removeAll { $0.id == asset.id }
