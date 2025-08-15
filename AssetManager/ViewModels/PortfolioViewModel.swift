@@ -102,6 +102,7 @@ class PortfolioViewModel: ObservableObject {
     // MARK: - Private Properties
     private let stockAPIService: StockAPIService
     private let analysisService = PortfolioAnalysisService.shared
+    private let transactionStore = TransactionStore.shared
     private var refreshTimer: Timer?
     private let userDefaults = UserDefaults.standard
     private let assetsKey = "SavedAssets"
@@ -173,6 +174,20 @@ class PortfolioViewModel: ObservableObject {
                 await updatePortfolioAnalysis()
             }
         }
+
+        // 同步记录买入交易（费用默认为0）
+        let buyTx = Transaction(
+            stockCode: asset.stockCode,
+            stockName: asset.stockName,
+            market: asset.market,
+            currency: asset.currency,
+            type: .buy,
+            shares: asset.shares,
+            price: asset.costPrice,
+            fees: 0,
+            date: asset.purchaseDate
+        )
+        transactionStore.add(buyTx)
     }
     
     /// 卖出资产（部分或全部）
@@ -217,6 +232,22 @@ class PortfolioViewModel: ObservableObject {
         Task {
             await updatePortfolioAnalysis()
         }
+
+        // 记录卖出交易（含已实现盈亏）
+        let realizedPL = (sellPrice - current.costPrice) * soldShares - fees
+        let sellTx = Transaction(
+            stockCode: current.stockCode,
+            stockName: current.stockName,
+            market: current.market,
+            currency: current.currency,
+            type: .sell,
+            shares: soldShares,
+            price: sellPrice,
+            fees: fees,
+            date: sellDate,
+            realizedProfitLoss: realizedPL
+        )
+        transactionStore.add(sellTx)
     }
 
     /// 删除资产

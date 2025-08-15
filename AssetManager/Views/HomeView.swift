@@ -327,11 +327,13 @@ struct HomeView: View {
                     .listRowBackground(Color.clear)
             } else {
                 ForEach(viewModel.assets) { asset in
-                    AssetRowView(asset: asset) {
-                        viewModel.removeAsset(asset)
-                    } onSell: {
-                        assetToSell = asset
-                        HapticFeedback.light()
+                    NavigationLink(destination: AssetDetailView(asset: asset)) {
+                        AssetRowView(asset: asset) {
+                            viewModel.removeAsset(asset)
+                        } onSell: {
+                            assetToSell = asset
+                            HapticFeedback.light()
+                        }
                     }
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
