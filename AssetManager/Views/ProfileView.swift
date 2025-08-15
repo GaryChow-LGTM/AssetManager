@@ -357,13 +357,23 @@ struct AboutView: View {
                 .padding()
             }
             .navigationTitle("关于智投管家")
+            #if canImport(UIKit)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
+                #if canImport(UIKit)
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("完成") {
                         dismiss()
                     }
                 }
+                #else
+                ToolbarItem(placement: .primaryAction) {
+                    Button("完成") {
+                        dismiss()
+                    }
+                }
+                #endif
             }
         }
     }
@@ -456,13 +466,23 @@ struct DataManagementView: View {
                 }
             }
             .navigationTitle("数据管理")
+            #if canImport(UIKit)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
+                #if canImport(UIKit)
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("完成") {
                         dismiss()
                     }
                 }
+                #else
+                ToolbarItem(placement: .primaryAction) {
+                    Button("完成") {
+                        dismiss()
+                    }
+                }
+                #endif
             }
         }
         .alert("清除所有快照", isPresented: $showingClearAlert) {

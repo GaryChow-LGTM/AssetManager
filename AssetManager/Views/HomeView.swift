@@ -7,7 +7,7 @@ struct HomeView: View {
     @StateObject private var currencyService = CurrencyService.shared
     @StateObject private var analysisService = PortfolioAnalysisService.shared
     @State private var showingAddAsset = false
-    @State private var showingSettings = false
+    
     @State private var selectedChartType: ChartType = .market
     @State private var selectedTimeRange: TimeRange = .month
     @State private var showPercentageTrend: Bool = true
@@ -38,18 +38,10 @@ struct HomeView: View {
             #endif
             .toolbar {
                 #if canImport(UIKit)
-                ToolbarItem(placement: .navigationBarLeading) {
-                    settingsButton
-                }
-                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     addAssetButton
                 }
                 #else
-                ToolbarItem(placement: .secondaryAction) {
-                    settingsButton
-                }
-                
                 ToolbarItem(placement: .primaryAction) {
                     addAssetButton
                 }
@@ -63,9 +55,6 @@ struct HomeView: View {
             AddAssetView { asset in
                 viewModel.addAsset(asset)
             }
-        }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView()
         }
         .alert("错误", isPresented: .constant(viewModel.errorMessage != nil)) {
             Button("确定") {
@@ -366,14 +355,6 @@ struct HomeView: View {
             HapticFeedback.light()
         } label: {
             Image(systemName: "plus")
-        }
-    }
-    
-    private var settingsButton: some View {
-        Button {
-            showingSettings = true
-        } label: {
-            Image(systemName: "gearshape")
         }
     }
     
