@@ -10,6 +10,7 @@ struct AddAssetView: View {
     // MARK: - Form States
     @State private var searchText = ""
     @State private var selectedStock: StockInfo?
+    @State private var selectedCurrency: CurrencyType?
     @State private var shares = ""
     @State private var costPrice = ""
     @State private var showingStockSelection = false
@@ -20,8 +21,13 @@ struct AddAssetView: View {
                 // 股票选择部分
                 stockSelectionSection
                 
-                // 持仓信息输入部分
+                // 货币选择部分
                 if selectedStock != nil {
+                    currencySelectionSection
+                }
+                
+                // 持仓信息输入部分
+                if selectedStock != nil && selectedCurrency != nil {
                     positionInfoSection
                 }
             }
@@ -61,6 +67,8 @@ struct AddAssetView: View {
             .sheet(isPresented: $showingStockSelection) {
                 StockSearchView(onStockSelected: { stock in
                     selectedStock = stock
+                    // 设置默认货币
+                    selectedCurrency = CurrencyService.shared.getDefaultCurrency(for: stock.market)
                     showingStockSelection = false
                 })
             }
@@ -127,6 +135,51 @@ struct AddAssetView: View {
         }
     }
     
+    // MARK: - Currency Selection Section
+    private var currencySelectionSection: some View {
+        Section {
+            ForEach(CurrencyType.allCases, id: \.self) { currency in
+                Button {
+                    selectedCurrency = currency
+                    HapticFeedback.light()
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(currency.displayName)
+                                .foregroundColor(.primary)
+                                .fontWeight(.medium)
+                            
+                            Text(currency.code)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Text(currency.symbol)
+                            .font(.title2)
+                            .foregroundColor(.secondary)
+                        
+                        if selectedCurrency == currency {
+                            Image(systemName: "checkmark")
+                                .foregroundColor(.blue)
+                                .fontWeight(.semibold)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        } header: {
+            Text("交易货币")
+        } footer: {
+            if let selectedStock = selectedStock {
+                let defaultCurrency = CurrencyService.shared.getDefaultCurrency(for: selectedStock.market)
+                Text("推荐使用 \(defaultCurrency.displayName)(\(defaultCurrency.code))，这是 \(selectedStock.market.displayName) 的常用货币")
+            }
+        }
+    }
+    
     // MARK: - Position Info Section
     private var positionInfoSection: some View {
         Section {
@@ -168,6 +221,7 @@ struct AddAssetView: View {
             
             // 预览信息
             if let stock = selectedStock,
+               let currency = selectedCurrency,
                let sharesValue = Double(shares),
                let costPriceValue = Double(costPrice),
                sharesValue > 0 && costPriceValue > 0 {
@@ -178,14 +232,14 @@ struct AddAssetView: View {
                     HStack {
                         Text("总成本")
                         Spacer()
-                        Text("¥\(String(format: "%.2f", sharesValue * costPriceValue))")
+                        Text(CurrencyService.shared.formatAmount(sharesValue * costPriceValue, currency: currency))
                             .fontWeight(.medium)
                     }
                     
                     HStack {
                         Text("当前市值")
                         Spacer()
-                        Text("¥\(String(format: "%.2f", sharesValue * stock.currentPrice))")
+                        Text(CurrencyService.shared.formatAmount(sharesValue * stock.currentPrice, currency: currency))
                             .fontWeight(.medium)
                     }
                     
@@ -196,7 +250,8 @@ struct AddAssetView: View {
                         Text("预计盈亏")
                         Spacer()
                         VStack(alignment: .trailing, spacing: 2) {
-                            Text(String(format: "%+.2f", profitLoss))
+                            let symbol = profitLoss >= 0 ? "+" : ""
+                            Text("\(symbol)\(CurrencyService.shared.formatAmount(abs(profitLoss), currency: currency))")
                                 .fontWeight(.medium)
                                 .foregroundColor(profitLoss >= 0 ? .green : .red)
                             
@@ -220,6 +275,7 @@ struct AddAssetView: View {
     // MARK: - Computed Properties
     private var canAddAsset: Bool {
         guard let _ = selectedStock,
+              let _ = selectedCurrency,
               let sharesValue = Double(shares),
               let costPriceValue = Double(costPrice) else {
             return false
@@ -231,6 +287,7 @@ struct AddAssetView: View {
     // MARK: - Actions
     private func addAsset() {
         guard let stock = selectedStock,
+              let currency = selectedCurrency,
               let sharesValue = Double(shares),
               let costPriceValue = Double(costPrice) else {
             return
@@ -240,6 +297,7 @@ struct AddAssetView: View {
             stockCode: stock.stockCode,
             stockName: stock.stockName,
             market: stock.market,
+            currency: currency,
             shares: sharesValue,
             costPrice: costPriceValue,
             currentPrice: stock.currentPrice

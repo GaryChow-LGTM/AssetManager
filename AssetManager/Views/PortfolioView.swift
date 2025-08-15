@@ -4,7 +4,9 @@ import Charts
 /// 资产组合主页视图
 struct PortfolioView: View {
     @StateObject private var viewModel = PortfolioViewModel()
+    @StateObject private var currencyService = CurrencyService.shared
     @State private var showingAddAsset = false
+    @State private var showingSettings = false
     @State private var selectedChartType: ChartType = .market
     
     var body: some View {
@@ -31,7 +33,10 @@ struct PortfolioView: View {
             .toolbar {
                 #if canImport(UIKit)
                 ToolbarItem(placement: .navigationBarLeading) {
-                    refreshButton
+                    HStack {
+                        refreshButton
+                        settingsButton
+                    }
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -43,7 +48,10 @@ struct PortfolioView: View {
                 }
                 
                 ToolbarItem(placement: .secondaryAction) {
-                    refreshButton
+                    HStack {
+                        refreshButton
+                        settingsButton
+                    }
                 }
                 #endif
             }
@@ -51,6 +59,9 @@ struct PortfolioView: View {
                 AddAssetView { asset in
                     viewModel.addAsset(asset)
                 }
+            }
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
             }
             .alert("错误", isPresented: .constant(viewModel.errorMessage != nil)) {
                 Button("确定") {
@@ -77,8 +88,8 @@ struct PortfolioView: View {
             // 总资产卡片
             StatisticCard(
                 title: "总资产",
-                value: String(format: "¥%.2f", viewModel.totalValue),
-                subtitle: "",
+                value: viewModel.formattedTotalValue,
+                subtitle: "基准货币: \(viewModel.baseCurrency.displayName)",
                 color: .blue,
                 icon: "chart.line.uptrend.xyaxis"
             )
@@ -87,7 +98,7 @@ struct PortfolioView: View {
                 // 累计盈亏卡片
                 StatisticCard(
                     title: "累计盈亏",
-                    value: String(format: "%+.2f", viewModel.totalProfitLoss),
+                    value: viewModel.formattedTotalProfitLoss,
                     subtitle: String(format: "%+.2f%%", viewModel.totalProfitLossPercentage),
                     color: viewModel.isTotalProfitable ? .green : .red,
                     icon: viewModel.isTotalProfitable ? "arrow.up.circle.fill" : "arrow.down.circle.fill"
@@ -96,7 +107,7 @@ struct PortfolioView: View {
                 // 总成本卡片
                 StatisticCard(
                     title: "总成本",
-                    value: String(format: "¥%.2f", viewModel.totalCost),
+                    value: viewModel.formattedTotalCost,
                     subtitle: "\(viewModel.assets.count)只股票",
                     color: .orange,
                     icon: "dollarsign.circle.fill"
@@ -118,9 +129,10 @@ struct PortfolioView: View {
                 Picker("图表类型", selection: $selectedChartType) {
                     Text("市场").tag(ChartType.market)
                     Text("个股").tag(ChartType.stock)
+                    Text("货币").tag(ChartType.currency)
                 }
                 .pickerStyle(SegmentedPickerStyle())
-                .frame(width: 120)
+                .frame(width: 180)
             }
             
             chartView
@@ -139,6 +151,8 @@ struct PortfolioView: View {
             marketDistributionChart
         case .stock:
             stockDistributionChart
+        case .currency:
+            currencyDistributionChart
         }
     }
     
@@ -180,6 +194,28 @@ struct PortfolioView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Text("前8大持仓")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        )
+    }
+    
+    private var currencyDistributionChart: some View {
+        Chart(viewModel.currencyDistribution, id: \.currency) { data in
+            SectorMark(
+                angle: .value("货币比例", data.percentage),
+                innerRadius: .ratio(0.5),
+                angularInset: 1.5
+            )
+            .foregroundStyle(colorForCurrency(data.currency))
+            .opacity(0.8)
+        }
+        .overlay(
+            VStack {
+                Text("货币分布")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text(currencyService.preferences.baseCurrency.displayName + "统计")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
@@ -261,6 +297,14 @@ struct PortfolioView: View {
         }
     }
     
+    private var settingsButton: some View {
+        Button {
+            showingSettings = true
+        } label: {
+            Image(systemName: "gearshape")
+        }
+    }
+    
     // MARK: - Helper Methods
     private func colorForMarket(_ market: MarketType) -> Color {
         switch market {
@@ -278,12 +322,24 @@ struct PortfolioView: View {
         let index = abs(asset.stockCode.hashValue) % colors.count
         return colors[index]
     }
+    
+    private func colorForCurrency(_ currency: CurrencyType) -> Color {
+        switch currency {
+        case .cny:
+            return .red
+        case .hkd:
+            return .green
+        case .usd:
+            return .blue
+        }
+    }
 }
 
 // MARK: - Chart Type Enum
 enum ChartType {
     case market
     case stock
+    case currency
 }
 
 // MARK: - Statistic Card
@@ -360,16 +416,24 @@ struct AssetRowView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
                     
-                    Text("成本: ¥\(String(format: "%.2f", asset.costPrice))")
+                    Text("成本: \(asset.formattedCostPrice)")
                         .font(.caption)
                         .foregroundColor(.secondary)
+                    
+                    Text("(\(asset.currency.code))")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 3)
+                        .padding(.vertical, 1)
+                        .background(colorForCurrency(asset.currency).opacity(0.2))
+                        .cornerRadius(2)
                 }
             }
             
             Spacer()
             
             VStack(alignment: .trailing, spacing: 4) {
-                Text("¥\(String(format: "%.2f", asset.currentValue))")
+                Text(asset.formattedCurrentValue)
                     .font(.headline)
                     .fontWeight(.semibold)
                 
@@ -402,6 +466,17 @@ struct AssetRowView: View {
             return .green
         case .cnStock:
             return .red
+        }
+    }
+    
+    private func colorForCurrency(_ currency: CurrencyType) -> Color {
+        switch currency {
+        case .cny:
+            return .red
+        case .hkd:
+            return .green
+        case .usd:
+            return .blue
         }
     }
 }
