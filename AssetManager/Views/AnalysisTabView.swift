@@ -1,9 +1,8 @@
 import SwiftUI
 import Charts
 
-/// 投资组合深度分析页面
-struct AnalysisView: View {
-    @Environment(\.dismiss) private var dismiss
+/// 分析页面标签视图
+struct AnalysisTabView: View {
     @StateObject private var analysisService = PortfolioAnalysisService.shared
     @StateObject private var currencyService = CurrencyService.shared
     @State private var selectedTab: AnalysisTab = .overview
@@ -59,28 +58,16 @@ struct AnalysisView: View {
             }
             .navigationTitle("深度分析")
             #if canImport(UIKit)
-            .navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.large)
             #endif
             .toolbar {
                 #if canImport(UIKit)
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("关闭") {
-                        dismiss()
-                    }
-                }
-                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("快照") {
                         createSnapshot()
                     }
                 }
                 #else
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("关闭") {
-                        dismiss()
-                    }
-                }
-                
                 ToolbarItem(placement: .primaryAction) {
                     Button("快照") {
                         createSnapshot()
@@ -523,11 +510,9 @@ struct AnalysisView: View {
     }
 }
 
-
-
 // MARK: - Preview
-struct AnalysisView_Previews: PreviewProvider {
+struct AnalysisTabView_Previews: PreviewProvider {
     static var previews: some View {
-        AnalysisView(assets: [])
+        AnalysisTabView(assets: [])
     }
 }
