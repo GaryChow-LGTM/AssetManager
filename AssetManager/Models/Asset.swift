@@ -6,9 +6,10 @@ struct Asset: Identifiable, Codable, Hashable {
     let stockCode: String // 股票代码
     let stockName: String // 股票名称
     let market: MarketType // 所属市场
+    let currency: CurrencyType // 交易货币
     var shares: Double // 持股数量
-    var costPrice: Double // 平均成本价
-    var currentPrice: Double // 当前价格
+    var costPrice: Double // 平均成本价（原币种）
+    var currentPrice: Double // 当前价格（原币种）
     let addedDate: Date // 添加日期
     
     /// 当前市值
@@ -37,14 +38,103 @@ struct Asset: Identifiable, Codable, Hashable {
         profitLoss >= 0
     }
     
-    init(stockCode: String, stockName: String, market: MarketType, shares: Double, costPrice: Double, currentPrice: Double = 0.0) {
+    init(stockCode: String, stockName: String, market: MarketType, currency: CurrencyType? = nil, shares: Double, costPrice: Double, currentPrice: Double = 0.0) {
         self.stockCode = stockCode
         self.stockName = stockName
         self.market = market
+        // 使用默认货币映射，避免MainActor问题
+        self.currency = currency ?? Self.getDefaultCurrency(for: market)
         self.shares = shares
         self.costPrice = costPrice
         self.currentPrice = currentPrice
         self.addedDate = Date()
+    }
+    
+    /// 获取市场的默认货币（静态方法，避免MainActor问题）
+    private static func getDefaultCurrency(for market: MarketType) -> CurrencyType {
+        switch market {
+        case .cnStock:
+            return .cny
+        case .hkStock:
+            return .hkd
+        case .usStock:
+            return .usd
+        }
+    }
+    
+    // MARK: - 基础格式化显示（使用简单格式，避免MainActor问题）
+    
+    /// 格式化显示当前价格
+    var formattedCurrentPrice: String {
+        return "\(currency.symbol)\(String(format: "%.2f", currentPrice))"
+    }
+    
+    /// 格式化显示成本价
+    var formattedCostPrice: String {
+        return "\(currency.symbol)\(String(format: "%.2f", costPrice))"
+    }
+    
+    /// 格式化显示当前市值
+    var formattedCurrentValue: String {
+        return "\(currency.symbol)\(String(format: "%.2f", currentValue))"
+    }
+    
+    /// 格式化显示总成本
+    var formattedTotalCost: String {
+        return "\(currency.symbol)\(String(format: "%.2f", totalCost))"
+    }
+    
+    /// 格式化显示盈亏金额
+    var formattedProfitLoss: String {
+        let amount = profitLoss
+        let symbol = isProfitable ? "+" : ""
+        return "\(symbol)\(currency.symbol)\(String(format: "%.2f", abs(amount)))"
+    }
+}
+
+// MARK: - MainActor 扩展（需要MainActor上下文的方法）
+@MainActor
+extension Asset {
+    /// 获取当前市值（指定货币）
+    func getCurrentValue(in targetCurrency: CurrencyType) -> Double {
+        return CurrencyService.shared.convert(amount: currentValue, from: currency, to: targetCurrency)
+    }
+    
+    /// 获取总成本（指定货币）
+    func getTotalCost(in targetCurrency: CurrencyType) -> Double {
+        return CurrencyService.shared.convert(amount: totalCost, from: currency, to: targetCurrency)
+    }
+    
+    /// 获取盈亏金额（指定货币）
+    func getProfitLoss(in targetCurrency: CurrencyType) -> Double {
+        return getCurrentValue(in: targetCurrency) - getTotalCost(in: targetCurrency)
+    }
+    
+    /// 使用CurrencyService格式化显示当前价格
+    var currencyFormattedCurrentPrice: String {
+        return CurrencyService.shared.formatAmount(currentPrice, currency: currency)
+    }
+    
+    /// 使用CurrencyService格式化显示成本价
+    var currencyFormattedCostPrice: String {
+        return CurrencyService.shared.formatAmount(costPrice, currency: currency)
+    }
+    
+    /// 使用CurrencyService格式化显示当前市值
+    var currencyFormattedCurrentValue: String {
+        return CurrencyService.shared.formatAmount(currentValue, currency: currency)
+    }
+    
+    /// 使用CurrencyService格式化显示总成本
+    var currencyFormattedTotalCost: String {
+        return CurrencyService.shared.formatAmount(totalCost, currency: currency)
+    }
+    
+    /// 使用CurrencyService格式化显示盈亏金额
+    var currencyFormattedProfitLoss: String {
+        let amount = profitLoss
+        let symbol = isProfitable ? "+" : ""
+        return "\(symbol)\(CurrencyService.shared.formatAmount(abs(amount), currency: currency))"
     }
 }
 

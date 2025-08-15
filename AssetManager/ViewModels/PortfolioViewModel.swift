@@ -12,16 +12,24 @@ class PortfolioViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var isRefreshing = false
     
+    // MARK: - Currency Service
+    private let currencyService = CurrencyService.shared
+    
     // MARK: - Computed Properties
     
-    /// 总资产市值
+    /// 总资产市值（基准货币）
     var totalValue: Double {
-        assets.reduce(0) { $0 + $1.currentValue }
+        currencyService.calculateTotalValue(assets: assets)
     }
     
-    /// 总成本
+    /// 总成本（基准货币）
     var totalCost: Double {
-        assets.reduce(0) { $0 + $1.totalCost }
+        currencyService.calculateTotalCost(assets: assets)
+    }
+    
+    /// 基准货币
+    var baseCurrency: CurrencyType {
+        currencyService.preferences.baseCurrency
     }
     
     /// 总盈亏金额
@@ -64,12 +72,25 @@ class PortfolioViewModel: ObservableObject {
         
         return assets
             .map { asset in
-                let percentage = (asset.currentValue / totalValue) * 100
+                let assetValueInBaseCurrency = asset.getCurrentValue(in: baseCurrency)
+                let percentage = (assetValueInBaseCurrency / totalValue) * 100
                 return (asset: asset, percentage: percentage)
             }
             .sorted { $0.percentage > $1.percentage }
             .prefix(10)
             .map { $0 }
+    }
+    
+    /// 货币分布数据（用于饼图）
+    var currencyDistribution: [(currency: CurrencyType, value: Double, percentage: Double)] {
+        let currencyGroups = currencyService.groupAssetsByCurrency(assets: assets)
+        
+        return currencyGroups.compactMap { currency, data in
+            guard totalValue > 0 else { return nil }
+            let valueInBaseCurrency = currencyService.convert(amount: data.value, from: currency, to: baseCurrency)
+            let percentage = (valueInBaseCurrency / totalValue) * 100
+            return (currency: currency, value: valueInBaseCurrency, percentage: percentage)
+        }.sorted { $0.value > $1.value }
     }
     
     // MARK: - Private Properties
@@ -186,6 +207,24 @@ class PortfolioViewModel: ObservableObject {
         errorMessage = nil
     }
     
+    // MARK: - Currency Formatting
+    
+    /// 格式化总资产显示
+    var formattedTotalValue: String {
+        return currencyService.formatAmount(totalValue, currency: baseCurrency)
+    }
+    
+    /// 格式化总成本显示
+    var formattedTotalCost: String {
+        return currencyService.formatAmount(totalCost, currency: baseCurrency)
+    }
+    
+    /// 格式化总盈亏显示
+    var formattedTotalProfitLoss: String {
+        let symbol = isTotalProfitable ? "+" : ""
+        return "\(symbol)\(currencyService.formatAmount(totalProfitLoss, currency: baseCurrency))"
+    }
+    
     // MARK: - Private Methods
     
     /// 加载保存的资产
@@ -245,10 +284,12 @@ extension PortfolioViewModel {
                     let costPriceRatio = Double.random(in: 0.8...1.2) // 成本价相对当前价格的比例
                     let costPrice = stock.currentPrice * costPriceRatio
                     
+                    let currency = currencyService.getDefaultCurrency(for: market)
                     let asset = Asset(
                         stockCode: stock.stockCode,
                         stockName: stock.stockName,
                         market: market,
+                        currency: currency,
                         shares: shares,
                         costPrice: costPrice,
                         currentPrice: stock.currentPrice
