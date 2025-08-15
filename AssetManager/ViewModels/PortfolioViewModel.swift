@@ -122,15 +122,56 @@ class PortfolioViewModel: ObservableObject {
     
     /// 添加资产
     func addAsset(_ asset: Asset) {
-        assets.append(asset)
-        saveAssets()
-        
-        // 立即更新新添加资产的价格
-        Task {
-            await refreshAssetPrice(asset)
+        // 如果已存在相同标的（以股票代码 + 市场为唯一标识），执行加仓合并
+        if let index = assets.firstIndex(where: { $0.stockCode == asset.stockCode && $0.market == asset.market }) {
+            var existing = assets[index]
+            let existingShares = existing.shares
+            let newShares = asset.shares
+            let totalShares = existingShares + newShares
+
+            if totalShares > 0 {
+                // 将新增持仓总成本换算到现有持仓币种后再加权
+                let existingCurrency = existing.currency
+                let existingTotalCost = existingShares * existing.costPrice
+                let addedTotalCostOriginal = newShares * asset.costPrice
+                let addedTotalCostInExistingCurrency: Double
+                if asset.currency == existingCurrency {
+                    addedTotalCostInExistingCurrency = addedTotalCostOriginal
+                } else {
+                    addedTotalCostInExistingCurrency = CurrencyService.shared.convert(
+                        amount: addedTotalCostOriginal,
+                        from: asset.currency,
+                        to: existingCurrency
+                    )
+                }
+
+                let mergedTotalCost = existingTotalCost + addedTotalCostInExistingCurrency
+                let mergedCostPrice = mergedTotalCost / totalShares
+
+                // 就地更新，保留既有 id、名称、市场、币种等
+                existing.shares = totalShares
+                existing.costPrice = mergedCostPrice
+                // currentPrice 保持不变，稍后刷新
+                assets[index] = existing
+            }
+
+            saveAssets()
+
+            // 合并后刷新该标的价格与分析
+            Task {
+                await refreshAssetPrice(assets[index])
+                await updatePortfolioAnalysis()
+            }
+        } else {
+            // 不存在则直接新增
+            assets.append(asset)
+            saveAssets()
             
-            // 添加资产后立即更新投资组合深度分析
-            await updatePortfolioAnalysis()
+            // 立即更新新添加资产的价格与分析
+            Task {
+                await refreshAssetPrice(asset)
+                await updatePortfolioAnalysis()
+            }
         }
     }
     
