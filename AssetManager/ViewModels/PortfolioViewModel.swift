@@ -223,17 +223,46 @@ class PortfolioViewModel: ObservableObject {
 extension PortfolioViewModel {
     /// 添加示例数据（用于预览和测试）
     func addSampleData() {
-        let sampleAssets = [
-            Asset(stockCode: "AAPL", stockName: "苹果公司", market: .usStock, 
-                  shares: 100, costPrice: 150.0, currentPrice: 178.25),
-            Asset(stockCode: "00700", stockName: "腾讯控股", market: .hkStock, 
-                  shares: 200, costPrice: 350.0, currentPrice: 368.80),
-            Asset(stockCode: "600519", stockName: "贵州茅台", market: .cnStock, 
-                  shares: 10, costPrice: 1600.0, currentPrice: 1680.0)
-        ]
-        
-        for asset in sampleAssets {
-            addAsset(asset)
+        Task {
+            // 等待股票数据加载完成
+            let allStocks = await StockDataParser.shared.loadStockData()
+            
+            // 从真实数据中选择一些热门股票作为示例
+            let sampleStockCodes = [
+                ("AAPL", MarketType.usStock),     // 苹果
+                ("MSFT", MarketType.usStock),     // 微软
+                ("00700", MarketType.hkStock),    // 腾讯控股
+                ("09988", MarketType.hkStock),    // 阿里巴巴
+                ("600519", MarketType.cnStock),   // 贵州茅台
+                ("000858", MarketType.cnStock)    // 五粮液
+            ]
+            
+            var sampleAssets: [Asset] = []
+            
+            for (code, market) in sampleStockCodes {
+                if let stock = StockDataParser.shared.getStock(byCode: code, market: market) {
+                    let shares: Double = market == .cnStock ? Double.random(in: 10...100) : Double.random(in: 50...500)
+                    let costPriceRatio = Double.random(in: 0.8...1.2) // 成本价相对当前价格的比例
+                    let costPrice = stock.currentPrice * costPriceRatio
+                    
+                    let asset = Asset(
+                        stockCode: stock.stockCode,
+                        stockName: stock.stockName,
+                        market: market,
+                        shares: shares,
+                        costPrice: costPrice,
+                        currentPrice: stock.currentPrice
+                    )
+                    sampleAssets.append(asset)
+                }
+            }
+            
+            // 在主线程添加资产
+            await MainActor.run {
+                for asset in sampleAssets {
+                    addAsset(asset)
+                }
+            }
         }
     }
 }
