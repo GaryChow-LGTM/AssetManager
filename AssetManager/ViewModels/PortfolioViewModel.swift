@@ -83,15 +83,21 @@ class PortfolioViewModel: ObservableObject {
     
     /// 货币分布数据（用于饼图）
     var currencyDistribution: [(currency: CurrencyType, value: Double, percentage: Double)] {
-        let currencyGroups = currencyService.groupAssetsByCurrency(assets: assets)
+        let currencyValues = Dictionary(grouping: assets) { $0.currency }
+            .mapValues { assets in
+                assets.reduce(0) { total, asset in
+                    total + asset.getCurrentValue(in: baseCurrency)
+                }
+            }
         
-        return currencyGroups.compactMap { currency, data in
+        return currencyValues.compactMap { currency, value in
             guard totalValue > 0 else { return nil }
-            let valueInBaseCurrency = currencyService.convert(amount: data.value, from: currency, to: baseCurrency)
-            let percentage = (valueInBaseCurrency / totalValue) * 100
-            return (currency: currency, value: valueInBaseCurrency, percentage: percentage)
+            let percentage = (value / totalValue) * 100
+            return (currency: currency, value: value, percentage: percentage)
         }.sorted { $0.value > $1.value }
     }
+    
+
     
     // MARK: - Private Properties
     private let stockAPIService: StockAPIService

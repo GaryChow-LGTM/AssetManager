@@ -113,55 +113,7 @@ enum IndustryType: String, CaseIterable, Codable {
     }
 }
 
-/// 时间范围枚举
-enum TimeRange: String, CaseIterable {
-    case week = "7天"
-    case month = "1个月"
-    case quarter = "3个月"
-    case halfYear = "6个月"
-    case year = "1年"
-    case all = "全部"
-    
-    var days: Int {
-        switch self {
-        case .week:
-            return 7
-        case .month:
-            return 30
-        case .quarter:
-            return 90
-        case .halfYear:
-            return 180
-        case .year:
-            return 365
-        case .all:
-            return Int.max
-        }
-    }
-    
-    var displayName: String {
-        return rawValue
-    }
-}
 
-/// P&L报告项
-struct ProfitLossItem: Identifiable {
-    let id = UUID()
-    let stockCode: String
-    let stockName: String
-    let market: MarketType
-    let industry: IndustryType
-    let shares: Double
-    let costPrice: Double
-    let currentPrice: Double
-    let profitLoss: Double
-    let profitLossPercentage: Double
-    let currency: CurrencyType
-    
-    var isProfitable: Bool {
-        profitLoss >= 0
-    }
-}
 
 /// 历史收益数据点
 struct HistoryDataPoint: Identifiable {
