@@ -10,6 +10,10 @@ struct AssetDetailView: View {
         _viewModel = StateObject(wrappedValue: AssetDetailViewModel(stockCode: asset.stockCode, market: asset.market, currency: asset.currency))
     }
     
+    @EnvironmentObject private var portfolioViewModel: PortfolioViewModel
+    @State private var showingBuy = false
+    @State private var showingSell = false
+
     var body: some View {
         List {
             headerSection
@@ -23,6 +27,34 @@ struct AssetDetailView: View {
         #endif
         .onChange(of: viewModel.filterType) { _ in viewModel.load() }
         .onChange(of: viewModel.timeRange) { _ in viewModel.load() }
+        .toolbar {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                Button {
+                    showingBuy = true
+                    HapticFeedback.light()
+                } label: {
+                    Image(systemName: "cart.badge.plus")
+                }
+                Button {
+                    showingSell = true
+                    HapticFeedback.light()
+                } label: {
+                    Image(systemName: "arrow.up.circle")
+                }
+            }
+        }
+        .sheet(isPresented: $showingBuy) {
+            BuyAssetView(asset: asset) { s, p, d, f in
+                portfolioViewModel.buyMore(for: asset, shares: s, price: p, date: d, fees: f)
+                viewModel.load()
+            }
+        }
+        .sheet(isPresented: $showingSell) {
+            SellAssetView(asset: asset) { soldShares, sellPrice, sellDate, fees in
+                portfolioViewModel.sellAsset(asset, soldShares: soldShares, sellPrice: sellPrice, sellDate: sellDate, fees: fees)
+                viewModel.load()
+            }
+        }
     }
     
     private var headerSection: some View {

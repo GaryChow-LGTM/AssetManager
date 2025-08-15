@@ -250,6 +250,40 @@ class PortfolioViewModel: ObservableObject {
         transactionStore.add(sellTx)
     }
 
+    /// 详情页加仓当前标的（记录费用到交易，不调整成本价公式，仍按加权平均合并）
+    func buyMore(for asset: Asset, shares: Double, price: Double, date: Date = Date(), fees: Double = 0) {
+        guard shares > 0, price > 0, fees >= 0 else {
+            errorMessage = "买入参数非法"
+            return
+        }
+        // 合并到现有持仓：复用 addAsset 的加权逻辑
+        let lot = Asset(
+            stockCode: asset.stockCode,
+            stockName: asset.stockName,
+            market: asset.market,
+            currency: asset.currency,
+            shares: shares,
+            costPrice: price,
+            currentPrice: asset.currentPrice,
+            purchaseDate: date
+        )
+        addAsset(lot)
+
+        // 写入买入交易（包含费用）
+        let buyTx = Transaction(
+            stockCode: asset.stockCode,
+            stockName: asset.stockName,
+            market: asset.market,
+            currency: asset.currency,
+            type: .buy,
+            shares: shares,
+            price: price,
+            fees: fees,
+            date: date
+        )
+        transactionStore.add(buyTx)
+    }
+
     /// 删除资产
     func removeAsset(_ asset: Asset) {
         assets.removeAll { $0.id == asset.id }

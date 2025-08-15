@@ -29,6 +29,7 @@ struct MainTabView: View {
                 .tag(2)
         }
         .accentColor(.blue)
+        .environmentObject(portfolioViewModel)
         .onAppear {
             // 通过 UITest 启动参数注入示例数据
             if ProcessInfo.processInfo.arguments.contains("-uiTestAddSampleData") {
