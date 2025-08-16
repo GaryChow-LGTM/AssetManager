@@ -100,14 +100,14 @@ class PortfolioViewModel: ObservableObject {
     /// 基于所选分组过滤后的资产
     var filteredAssets: [Asset] {
         guard let gid = selectedGroupId else { return assets }
-        return assets.filter { $0.groupId == gid }
+        return assets.filter { $0.groupIds.contains(gid) }
     }
 
     // MARK: - Group Ops
-    func assign(_ asset: Asset, to groupId: String?) {
+    func assign(_ asset: Asset, to groupIds: [String]) {
         if let index = assets.firstIndex(where: { $0.id == asset.id }) {
             var updated = assets[index]
-            updated.groupId = groupId
+            updated.groupIds = groupIds
             assets[index] = updated
             saveAssets()
         }
@@ -116,10 +116,9 @@ class PortfolioViewModel: ObservableObject {
     func unassignGroup(for groupId: String) {
         var changed = false
         for i in assets.indices {
-            if assets[i].groupId == groupId {
-                assets[i].groupId = nil
-                changed = true
-            }
+            let before = assets[i].groupIds
+            assets[i].groupIds.removeAll { $0 == groupId }
+            if before != assets[i].groupIds { changed = true }
         }
         if changed { saveAssets() }
     }
@@ -246,7 +245,7 @@ class PortfolioViewModel: ObservableObject {
                 costPrice: current.costPrice,
                 currentPrice: current.currentPrice,
                 purchaseDate: current.purchaseDate,
-                groupId: current.groupId
+                groupIds: current.groupIds
             )
             assets[index] = updated
         } else {
@@ -359,7 +358,7 @@ class PortfolioViewModel: ObservableObject {
                         costPrice: asset.costPrice,
                         currentPrice: newPrice,
                         purchaseDate: asset.purchaseDate,
-                        groupId: asset.groupId
+                        groupIds: asset.groupIds
                     )
                 }
             }
@@ -393,7 +392,7 @@ class PortfolioViewModel: ObservableObject {
                     costPrice: asset.costPrice,
                     currentPrice: stockInfo.currentPrice,
                     purchaseDate: asset.purchaseDate,
-                    groupId: asset.groupId
+                    groupIds: asset.groupIds
                 )
                 saveAssets()
             }

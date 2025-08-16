@@ -8,6 +8,7 @@ struct HomeView: View {
     @StateObject private var analysisService = PortfolioAnalysisService.shared
     @State private var showingAddAsset = false
     @State private var assetToSell: Asset?
+    @State private var assetToGroup: Asset?
     
     @State private var selectedTimeRange: TimeRange = .month
     @State private var showPercentageTrend: Bool = true
@@ -63,6 +64,11 @@ struct HomeView: View {
         .sheet(item: $assetToSell) { asset in
             SellAssetView(asset: asset) { soldShares, sellPrice, sellDate, fees in
                 viewModel.sellAsset(asset, soldShares: soldShares, sellPrice: sellPrice, sellDate: sellDate, fees: fees)
+            }
+        }
+        .sheet(item: $assetToGroup) { asset in
+            GroupPickerView(asset: asset) { gids in
+                viewModel.assign(asset, to: gids)
             }
         }
         .alert("错误", isPresented: .constant(viewModel.errorMessage != nil)) {
@@ -274,14 +280,12 @@ struct HomeView: View {
                         } onSell: {
                             assetToSell = asset
                             HapticFeedback.light()
+                        } onGroup: {
+                            assetToGroup = asset
+                            HapticFeedback.light()
                         }
                         .contextMenu {
-                            // 移动到分组菜单
-                            Button("未分组") { viewModel.assign(asset, to: nil) }
-                            Divider()
-                            ForEach(GroupStore.shared.list(), id: \.id) { g in
-                                Button(g.name) { viewModel.assign(asset, to: g.id) }
-                            }
+                            Button("分组…") { assetToGroup = asset }
                         }
                     }
                     .listRowSeparator(.hidden)

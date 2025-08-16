@@ -5,6 +5,7 @@ struct AssetRowView: View {
     let asset: Asset
     let onDelete: () -> Void
     var onSell: (() -> Void)? = nil
+    var onGroup: (() -> Void)? = nil
     
     var body: some View {
         HStack {
@@ -78,6 +79,11 @@ struct AssetRowView: View {
         .cornerRadius(8)
         .accessibilityIdentifier("AssetRow_\(asset.stockCode)_\(asset.market.rawValue)")
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if let onGroup = onGroup {
+                Button("分组") { onGroup() }
+                    .tint(.blue)
+                    .accessibilityIdentifier("group_button")
+            }
             if let onSell = onSell {
                 Button("卖出") {
                     onSell()
@@ -89,13 +95,6 @@ struct AssetRowView: View {
                 onDelete()
             }
             .accessibilityIdentifier("delete_button")
-        }
-        .swipeActions(edge: .leading, allowsFullSwipe: false) {
-            if let onSell = onSell {
-                Button("卖出") { onSell() }
-                    .tint(.blue)
-                    .accessibilityIdentifier("sell_button_leading")
-            }
         }
     }
     

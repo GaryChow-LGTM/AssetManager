@@ -2,7 +2,7 @@ import Foundation
 
 /// 资产数据模型
 struct Asset: Identifiable, Codable, Hashable {
-    let id = UUID()
+    var id = UUID()
     let stockCode: String // 股票代码
     let stockName: String // 股票名称
     let market: MarketType // 所属市场
@@ -11,7 +11,7 @@ struct Asset: Identifiable, Codable, Hashable {
     var costPrice: Double // 平均成本价（原币种）
     var currentPrice: Double // 当前价格（原币种）
     let purchaseDate: Date // 购入时间
-    var groupId: String? // 分组标识（nil 表示未分组，出现在“全部”）
+    var groupIds: [String] // 分组标识集合（空表示未分组，出现在“全部”）
     
     /// 当前市值
     var currentValue: Double {
@@ -39,7 +39,7 @@ struct Asset: Identifiable, Codable, Hashable {
         profitLoss >= 0
     }
     
-    init(stockCode: String, stockName: String, market: MarketType, currency: CurrencyType? = nil, shares: Double, costPrice: Double, currentPrice: Double = 0.0, purchaseDate: Date = Date(), groupId: String? = nil) {
+    init(stockCode: String, stockName: String, market: MarketType, currency: CurrencyType? = nil, shares: Double, costPrice: Double, currentPrice: Double = 0.0, purchaseDate: Date = Date(), groupIds: [String] = []) {
         self.stockCode = stockCode
         self.stockName = stockName
         self.market = market
@@ -49,7 +49,7 @@ struct Asset: Identifiable, Codable, Hashable {
         self.costPrice = costPrice
         self.currentPrice = currentPrice
         self.purchaseDate = purchaseDate
-        self.groupId = groupId
+        self.groupIds = groupIds
     }
     
     /// 获取市场的默认货币（静态方法，避免MainActor问题）
@@ -91,6 +91,56 @@ struct Asset: Identifiable, Codable, Hashable {
         let amount = profitLoss
         let symbol = isProfitable ? "+" : ""
         return "\(symbol)\(currency.symbol)\(String(format: "%.2f", abs(amount)))"
+    }
+}
+
+// 自定义 Codable，兼容旧数据中的单一 groupId 字段
+extension Asset {
+    private enum CodingKeys: String, CodingKey {
+        case id, stockCode, stockName, market, currency, shares, costPrice, currentPrice, purchaseDate, groupIds, groupId
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        let stockCode = try container.decode(String.self, forKey: .stockCode)
+        let stockName = try container.decode(String.self, forKey: .stockName)
+        let market = try container.decode(MarketType.self, forKey: .market)
+        let currency = try container.decode(CurrencyType.self, forKey: .currency)
+        let shares = try container.decode(Double.self, forKey: .shares)
+        let costPrice = try container.decode(Double.self, forKey: .costPrice)
+        let currentPrice = try container.decode(Double.self, forKey: .currentPrice)
+        let purchaseDate = try container.decode(Date.self, forKey: .purchaseDate)
+        let groupIds = try container.decodeIfPresent([String].self, forKey: .groupIds)
+            ?? (try container.decodeIfPresent(String.self, forKey: .groupId).map { [$0] } ?? [])
+
+        self.init(
+            stockCode: stockCode,
+            stockName: stockName,
+            market: market,
+            currency: currency,
+            shares: shares,
+            costPrice: costPrice,
+            currentPrice: currentPrice,
+            purchaseDate: purchaseDate,
+            groupIds: groupIds
+        )
+        // 保留已有 id（若存在）
+        self.id = id
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(stockCode, forKey: .stockCode)
+        try container.encode(stockName, forKey: .stockName)
+        try container.encode(market, forKey: .market)
+        try container.encode(currency, forKey: .currency)
+        try container.encode(shares, forKey: .shares)
+        try container.encode(costPrice, forKey: .costPrice)
+        try container.encode(currentPrice, forKey: .currentPrice)
+        try container.encode(purchaseDate, forKey: .purchaseDate)
+        try container.encode(groupIds, forKey: .groupIds)
     }
 }
 

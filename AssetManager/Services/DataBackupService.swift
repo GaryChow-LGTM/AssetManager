@@ -90,8 +90,11 @@ class DataBackupService: ObservableObject {
                     let mergedTotalCost = existingTotalCost + addedInExisting
                     exist.shares = totalShares
                     exist.costPrice = mergedTotalCost / totalShares
-                    // 分组以导入优先（若为空则保持现有）
-                    if let gid = a.groupId { exist.groupId = gid }
+                    // 分组合并：以并集为准（导入为空则保持现有）
+                    if !a.groupIds.isEmpty {
+                        let mergedSet = Set(exist.groupIds).union(a.groupIds)
+                        exist.groupIds = Array(mergedSet)
+                    }
                     map[key] = exist
                 }
             } else {
